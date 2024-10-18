@@ -1,0 +1,40 @@
+# Template JSP build
+
+# This template allows you to build and deploy a JSP project.
+# The workflow includes building the project, creating a Docker image, and deploying it to a server.
+
+image: maven:3.8.6-openjdk-8
+
+pipelines:
+  default:
+    - step:
+        name: Build and Test
+        caches:
+          - maven
+        script:
+          - mvn clean install
+    - step:
+        name: Build Docker Image
+        script:
+          - docker build -t academics_stg_api:1 .
+    - step:
+        name: Push Docker Image
+        script:
+          - docker tag academics_stg_api:1 yourdockerhubusername/academics_stg_api:1
+          - docker push yourdockerhubusername/academics_stg_api:1
+    - step:
+        name: Deploy Docker Container
+        script:
+          - pipe: atlassian/ssh-run:0.6.0
+            variables:
+              SERVER: 'academics.codesrv.com'
+              USER: 'root'
+              PASSWORD: 'rq@s^DXc&*94'
+              COMMAND: |
+                # Stop and remove the existing container if it exists
+                docker stop academics_stg_api || true
+                docker rm academics_stg_api || true
+                # Pull the latest Docker image
+                docker pull yourdockerhubusername/academics_stg_api:1
+                # Run the Docker container with port mapping and the correct document root
+                docker run -d -p 8002:8002 --name academics_stg_api yourdockerhubusername/academics_stg_api:1
